@@ -1,0 +1,9 @@
+POST http://localhost:3003/api/blogs/
+Content-Type: application/json
+
+{
+  "title": "stressful thoughts",
+  "author": "wael",
+  "url": "therapeutical",
+  "likes": 100
+}
