@@ -1,22 +1,44 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
+const middleware = require('../utils/middleware')
+
+
 
 blogsRouter.get('/', async (req, res) => {
-  const fetchedNotes = await Blog.find({})
+  const fetchedNotes = await Blog.find({}).populate('user', { username: 1, name: 1 })
   res.json(fetchedNotes)
 })
 
-blogsRouter.post('/', async (req, res) => {
+blogsRouter.post('/', middleware.userExtractor, async (req, res) => {
   const body = req.body
+  const user = req.user
 
   const blog = new Blog({
     title: body.title,
     author: body.author,
     url: body.url,
-    likes: body.likes
+    likes: body.likes,
+    user: user._id
   })
-  const savedNote = await blog.save()
-  res.status(201).json(savedNote)
+  const savedBlog = await blog.save()
+  user.blogs = user.blogs.concat(savedBlog._id)
+  await user.save()
+  res.status(201).json(savedBlog)
+})
+
+blogsRouter.delete('/:id', middleware.userExtractor, async (req, res) => {
+  const user = req.user
+  const blog = await Blog.findById(req.params.id)
+  if (!blog) {
+    return res.status(204).end()
+  }
+
+  if (blog.user.toString() === user.id.toString()) {
+    await Blog.findByIdAndDelete(req.params.id)
+    res.status(204).end()
+  } else {
+    return res.status(401).json({ error: 'token invalid' })
+  }
 })
 
 
@@ -35,11 +57,6 @@ blogsRouter.put('/:id', async (req, res) => {
   res.status(200).json(updatedBlog)
 })
 
-
-blogsRouter.delete('/:id', async (req, res) => {
-  await Blog.findByIdAndDelete(req.params.id)
-  res.status(204).end()
-})
 
 
 module.exports = blogsRouter
